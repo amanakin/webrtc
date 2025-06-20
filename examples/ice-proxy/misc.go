@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/pion/logging"
 	"github.com/pion/turn/v4"
 	"golang.org/x/net/proxy"
 )
@@ -123,23 +124,23 @@ func proxyHandleConn(clientConn net.Conn) {
 }
 
 func newTURNServer() *turn.Server {
-	tcpListener, err := net.Listen("tcp4", "127.0.0.1:17342")
+	tcpListener, err := net.Listen("tcp4", ":17342")
 	if err != nil {
 		panic(err)
 	}
 
+	lf := logging.NewDefaultLoggerFactory()
+	lf.DefaultLogLevel = logging.LogLevelWarn
 	server, err := turn.NewServer(turn.ServerConfig{
 		AuthHandler: func(username, realm string, addr net.Addr) ([]byte, bool) {
-			log.Printf("Request to TURN from %q", addr.String())
-
 			return turn.GenerateAuthKey("turn_username", realm, "turn_password"), true
 		},
+		LoggerFactory: lf,
 		ListenerConfigs: []turn.ListenerConfig{
 			{
 				Listener: tcpListener,
-				RelayAddressGenerator: &turn.RelayAddressGeneratorStatic{
-					RelayAddress: net.ParseIP("127.0.0.1"),
-					Address:      "127.0.0.1",
+				RelayAddressGenerator: &turn.RelayAddressGeneratorNone{
+					Address: "172.16.242.243",
 				},
 			},
 		},

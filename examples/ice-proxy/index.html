@@ -1,10 +1,10 @@
 <html>
   <!--
-		SPDX-FileCopyrightText: 2025 The Pion community <https://pion.ly>
+		SPDX-FileCopyrightText: 2023 The Pion community <https://pion.ly>
 		SPDX-License-Identifier: MIT
 	-->
   <head>
-    <title>ice-proxy</title>
+    <title>trickle-ice</title>
   </head>
 
   <body>
@@ -18,18 +18,43 @@
   </body>
 
   <script>
-    let pc = new RTCPeerConnection({iceServers: [{
-      urls: 'turn:127.0.0.1:17342?transport=tcp',
-      username: 'turn_username',
-      credential: 'turn_password',
-    }]})
-    let dc = pc.createDataChannel('data')
+    const socket = new WebSocket(`ws://${window.location.host}/websocket`)
+    let pc = new RTCPeerConnection({
+    iceServers: [
+        {
+          urls: `turn:127.0.0.1:17342?transport=tcp`,
+          username: "turn_username",
+          credential: "turn_password"
+        }
+      ]
+    })
 
+    socket.onmessage = e => {
+      let msg = JSON.parse(e.data)
+      if (!msg) {
+        return console.log('failed to parse msg')
+      }
+
+      if (msg.candidate) {
+        pc.addIceCandidate(msg)
+      } else {
+        pc.setRemoteDescription(msg)
+      }
+    }
+
+    let dc = pc.createDataChannel('data')
     dc.onmessage = event => {
       let el = document.createElement('p')
       el.appendChild(document.createTextNode(event.data))
 
       document.getElementById('inboundDataChannelMessages').appendChild(el);
+    }
+
+    pc.onicecandidate = e => {
+      if (e.candidate && e.candidate.candidate !== "") {
+        console.info('sending local candidate ', e.candidate)
+        socket.send(JSON.stringify(e.candidate))
+      }
     }
 
     pc.oniceconnectionstatechange = () => {
@@ -39,23 +64,11 @@
       document.getElementById('iceConnectionStates').appendChild(el);
     }
 
-    pc.createOffer()
-      .then(offer => {
+    socket.onopen = () => {
+      pc.createOffer().then(offer => {
         pc.setLocalDescription(offer)
-
-        return fetch(`/doSignaling`, {
-          method: 'post',
-          headers: {
-            'Accept': 'application/json, text/plain, */*',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(offer)
-        })
+        socket.send(JSON.stringify(offer))
       })
-      .then(res => res.json())
-      .then(res => {
-        pc.setRemoteDescription(res)
-      })
-      .catch(alert)
+    }
   </script>
 </html>
