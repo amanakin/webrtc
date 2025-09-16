@@ -99,6 +99,7 @@ type SettingEngine struct {
 	iceTCPMux                                 ice.TCPMux
 	iceUDPMux                                 ice.UDPMux
 	iceProxyDialer                            proxy.Dialer
+	iceEnableEnvProxy                         bool
 	iceDisableActiveTCP                       bool
 	iceBindingRequestHandler                  func(m *stun.Message, local, remote ice.Candidate, pair *ice.CandidatePair) bool //nolint:lll
 	disableMediaEngineCopy                    bool
@@ -380,6 +381,13 @@ func (e *SettingEngine) SetICEUDPMux(udpMux ice.UDPMux) {
 // SetICEProxyDialer sets the proxy dialer interface based on golang.org/x/net/proxy.
 func (e *SettingEngine) SetICEProxyDialer(d proxy.Dialer) {
 	e.iceProxyDialer = d
+}
+
+// SetICEEnableEnvProxy enables using proxy settings from the environment.
+// If a custom dialer is set with `SetICEProxyDialer`, it takes precedence
+// over environment configurations.
+func (e *SettingEngine) SetICEEnableEnvProxy(enabled bool) {
+	e.iceEnableEnvProxy = enabled
 }
 
 // SetICEMaxBindingRequests sets the maximum amount of binding requests

@@ -11,9 +11,12 @@ import (
 	"sync"
 	"sync/atomic"
 
+	_ "github.com/pion/webrtc/v4/internal/httpproxy"
+
 	"github.com/pion/ice/v4"
 	"github.com/pion/logging"
 	"github.com/pion/stun/v3"
+	"golang.org/x/net/proxy"
 )
 
 // ICEGatherer gathers local host, server reflexive and relay
@@ -44,7 +47,7 @@ type ICEGatherer struct {
 	sdpMLineIndex atomic.Uint32 // uint16
 }
 
-// NewICEGatherer creates a new NewICEGatherer.
+// NewICEGatherer creates a new ICEGatherer.
 // This constructor is part of the ORTC API. It is not
 // meant to be used together with the basic WebRTC API.
 func (api *API) NewICEGatherer(opts ICEGatherOptions) (*ICEGatherer, error) {
@@ -101,6 +104,11 @@ func (g *ICEGatherer) createAgent() error { //nolint:cyclop
 		mDNSMode = ice.MulticastDNSModeQueryOnly
 	}
 
+	proxyDialer := g.api.settingEngine.iceProxyDialer
+	if g.api.settingEngine.iceEnableEnvProxy && proxyDialer == nil {
+		proxyDialer = proxy.FromEnvironment()
+	}
+
 	config := &ice.AgentConfig{
 		Lite:                   g.api.settingEngine.candidates.ICELite,
 		Urls:                   g.validatedServers,
@@ -128,7 +136,7 @@ func (g *ICEGatherer) createAgent() error { //nolint:cyclop
 		LocalPwd:               g.api.settingEngine.candidates.Password,
 		TCPMux:                 g.api.settingEngine.iceTCPMux,
 		UDPMux:                 g.api.settingEngine.iceUDPMux,
-		ProxyDialer:            g.api.settingEngine.iceProxyDialer,
+		ProxyDialer:            proxyDialer,
 		DisableActiveTCP:       g.api.settingEngine.iceDisableActiveTCP,
 		MaxBindingRequests:     g.api.settingEngine.iceMaxBindingRequests,
 		BindingRequestHandler:  g.api.settingEngine.iceBindingRequestHandler,
